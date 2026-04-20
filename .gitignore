@@ -1,0 +1,8 @@
+node_modules/
+dist/
+backups/
+config/.env
+config/.env.production
+.env*.local
+.DS_Store
+Thumbs.db

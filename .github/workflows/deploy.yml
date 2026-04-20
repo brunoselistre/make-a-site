@@ -1,0 +1,48 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write env file
+        run: |
+          cat > config/.env.production <<EOF
+          FTP_HOST=${{ secrets.FTP_HOST }}
+          FTP_USER=${{ secrets.FTP_USER }}
+          FTP_PASSWORD=${{ secrets.FTP_PASSWORD }}
+          FTP_PORT=${{ secrets.FTP_PORT }}
+          REMOTE_PATH=${{ secrets.REMOTE_PATH }}
+          SITE_URL=${{ secrets.SITE_URL }}
+          EOF
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          protocol: ftps
+          local-dir: ./src/
+          server-dir: ${{ secrets.REMOTE_PATH }}/
+          dangerous-clean-slate: false
+          log-level: standard
+
+      - name: Smoke test
+        run: |
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 15 -L "${{ secrets.SITE_URL }}")
+          echo "HTTP status: ${HTTP_STATUS}"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "ERRO: Teste de fumaça falhou — HTTP ${HTTP_STATUS}" >&2
+            exit 1
+          fi
+          echo "Smoke test aprovado."
