@@ -46,6 +46,7 @@ make-a-site/
 │       ├── ftp.sh
 │       ├── sftp.sh
 │       ├── s3.sh
+│       ├── firebase.sh
 │       ├── vercel.sh
 │       ├── netlify.sh
 │       ├── local.sh
@@ -118,6 +119,7 @@ When generating a new site, replace these placeholders globally in `src/`:
 | FTP | `ftp` | `FTP_HOST`, `FTP_USER`, `FTP_PASSWORD`, `FTP_PORT`, `REMOTE_PATH` |
 | SFTP | `sftp` | `SFTP_HOST`, `SFTP_USER`, `SFTP_PASSWORD`, `SFTP_PORT`, `REMOTE_PATH` |
 | S3 | `s3` | `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_ENDPOINT` |
+| Firebase | `firebase` | `FIREBASE_PROJECT_ID`, `FIREBASE_TOKEN` |
 | Vercel | `vercel` | `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_ORG_ID` |
 | Netlify | `netlify` | `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` |
 | Local | `local` | `LOCAL_DEST` |

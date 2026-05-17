@@ -41,7 +41,7 @@ echo ""
 
 source "$SCRIPT_DIR/lib/core.sh"
 
-DEPLOY_PROVIDER=$(ask "Provider de deploy (ftp, sftp, s3, vercel, netlify, local, rsync)" "ftp")
+DEPLOY_PROVIDER=$(ask "Provider de deploy (ftp, sftp, s3, firebase, vercel, netlify, local, rsync)" "ftp")
 
 PROVIDER_FILE=$(cd "$SCRIPT_DIR" && core_resolve_provider "$DEPLOY_PROVIDER" 2>/dev/null || true)
 if [ -z "$PROVIDER_FILE" ] || [ ! -f "$PROVIDER_FILE" ]; then

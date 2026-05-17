@@ -105,7 +105,7 @@ lftp --version
 
 ### 3. Obter as credenciais do seu provedor de hospedagem
 
-O pipeline suporta 7 provedores de deploy. As credenciais necessárias variam por provedor — veja a seção [Provedores](#provedores) abaixo para detalhes de cada um.
+O pipeline suporta 8 provedores de deploy. As credenciais necessárias variam por provedor — veja a seção [Provedores](#provedores) abaixo para detalhes de cada um.
 
 Para **FTP** (o padrão), você precisará de:
 - **Hostname FTP** (ex: `files.hostinger.com` ou IP)
@@ -119,13 +119,14 @@ Para **FTP** (o padrão), você precisará de:
 
 ## Provedores
 
-O pipeline de deploy é modular. Um único comando (`bash scripts/deploy.sh production`) funciona com qualquer um dos 7 provedores abaixo. O provedor ativo é definido pela variável `DEPLOY_PROVIDER` em `config/.env.production`.
+O pipeline de deploy é modular. Um único comando (`bash scripts/deploy.sh production`) funciona com qualquer um dos 8 provedores abaixo. O provedor ativo é definido pela variável `DEPLOY_PROVIDER` em `config/.env.production`.
 
 | Provedor | `DEPLOY_PROVIDER` | Quando usar |
 |---|---|---|
 | **FTP** | `ftp` | Hospedagem compartilhada (Hostinger, Locaweb, etc.) |
 | **SFTP** | `sftp` | Servidor VPS, AWS EC2, DigitalOcean — qualquer servidor com SSH |
 | **S3** | `s3` | AWS S3, Cloudflare R2, MinIO — storage de objetos |
+| **Firebase** | `firebase` | Sites estáticos no Firebase Hosting — gratuito, sem cartão de crédito |
 | **Vercel** | `vercel` | Projetos Next.js ou sites estáticos na Vercel |
 | **Netlify** | `netlify` | Sites estáticos na Netlify |
 | **Local** | `local` | Copia os arquivos para uma pasta local (testes, NAS, pen drive) |
@@ -165,6 +166,20 @@ REMOTE_PATH=/var/www/html
 
 **Pré-requisito:** `lftp` instalado (o mesmo do FTP).
 
+#### Firebase
+
+```bash
+# config/.env.production
+DEPLOY_PROVIDER=firebase
+SITE_URL=https://meu-projeto.web.app
+FIREBASE_PROJECT_ID=meu-projeto-12345
+FIREBASE_TOKEN=1//0abc...        # opcional — para CI/GitHub Actions
+```
+
+**Pré-requisito:** Firebase CLI instalado (`npm install -g firebase-tools`). Execute `firebase login` na primeira vez.
+
+> **Nota:** O Firebase Hosting é uma alternativa **gratuita e sem necessidade de cartão de crédito**. O plano Spark oferece 1 GB de storage e 10 GB/mês de transferência sem custo.
+
 #### S3
 
 ```bash
@@ -179,6 +194,12 @@ S3_ENDPOINT=          # opcional — para MinIO, Cloudflare R2, etc.
 ```
 
 **Pré-requisito:** AWS CLI instalado (`aws --version`).
+
+#### Firebase
+
+**Se `DEPLOY_PROVIDER=firebase`:**
+| `FIREBASE_PROJECT_ID` | ID do projeto Firebase (ex: `meu-projeto-12345`) |
+| `FIREBASE_TOKEN` | Token de deploy do Firebase (opcional — para CI) |
 
 #### Vercel
 
@@ -328,7 +349,7 @@ Você verá um bloco de perguntas. O primeiro passo é escolher o provedor de de
 
 ```
 ── Provedor de deploy ─
-Provedor (ftp, sftp, s3, vercel, netlify, local, rsync) [ftp]: ftp
+Provedor (ftp, sftp, s3, firebase, vercel, netlify, local, rsync) [ftp]: ftp
 ```
 
 Depois, o script pergunta as credenciais específicas do provedor escolhido. Para FTP, por exemplo:
@@ -400,7 +421,7 @@ bash scripts/deploy.sh production
 
 1. **Preflight** — o script verifica que todas as credenciais do provedor ativo estão definidas e que a conexão funciona; se algo estiver errado, para aqui antes de tocar no servidor
 2. **Backup local** — uma cópia de `src/` é salva em `backups/src-TIMESTAMP/` no seu computador; se o deploy der errado, você pode reverter re-enviando esse backup
-3. **Upload** — o script envia todos os arquivos de `src/` para o destino configurado (FTP, SFTP, S3, Vercel, Netlify, local ou rsync); arquivos removidos de `src/` também são removidos do destino
+3. **Upload** — o script envia todos os arquivos de `src/` para o destino configurado (FTP, SFTP, S3, Firebase, Vercel, Netlify, local ou rsync); arquivos removidos de `src/` também são removidos do destino
 4. **Teste de fumaça** — o script acessa sua URL e verifica se recebe HTTP 200; se receber outra resposta, exibe o comando exato de rollback e encerra com erro
 5. **Resumo** — exibe a confirmação com timestamp, localização do backup local e URL do site
 
@@ -519,7 +540,7 @@ Os Secrets do GitHub armazenam suas credenciais do servidor de forma criptografa
 
 | Nome do secret | Onde encontrar o valor |
 |---|---|
-| `DEPLOY_PROVIDER` | Provedor ativo: `ftp`, `sftp`, `s3`, `vercel`, `netlify`, `local`, `rsync` |
+| `DEPLOY_PROVIDER` | Provedor ativo: `ftp`, `sftp`, `s3`, `firebase`, `vercel`, `netlify`, `local`, `rsync` |
 | `SITE_URL` | URL do site (ex: `https://dominiodocliente.com.br`) |
 
 **Se `DEPLOY_PROVIDER=ftp`:**
