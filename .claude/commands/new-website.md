@@ -11,13 +11,14 @@ Pergunte um item por vez:
 1. **Nome da empresa** — usado nos títulos, package.json e nome da pasta.
 2. **Segmento / finalidade** — ex: clínica odontológica, restaurante, escritório de advocacia, academia. Define as imagens e textos de placeholder.
 3. **URL do site** — ex: `https://dominiodocliente.com.br`. Usada no teste de fumaça.
-4. **Hostname FTP** — ex: `files.hostinger.com` (veja hPanel > Arquivos > Contas FTP)
-5. **Usuário FTP** — ex: `u123456789`
-6. **Senha FTP** — senha da conta FTP (separada da senha da Hostinger)
-7. **Caminho remoto** — ex: `/home/u123456789/public_html`
-8. **Número do WhatsApp** — ex: `5511999999999` (DDI + DDD + número, sem espaços ou símbolos). Aparecerá como botão flutuante em todas as páginas.
-9. **Páginas** — padrão: `index, sobre, serviços, contato`. Enter para aceitar ou liste as desejadas.
-10. **Repositório GitHub** — ex: `acme-website`. Deixe em branco para pular.
+4. **Número do WhatsApp** — ex: `5511999999999` (DDI + DDD + número, sem espaços ou símbolos). Aparecerá como botão flutuante em todas as páginas.
+5. **Páginas** — padrão: `index, sobre, serviços, contato`. Enter para aceitar ou liste as desejadas.
+6. **Repositório GitHub** — ex: `acme-website`. Deixe em branco para pular.
+7. **Provedor de deploy** — ex: `ftp`, `sftp`, `s3`, `vercel`, `netlify`, `local`, `rsync`. Padrão: `ftp`.
+8. **Hostname FTP** — ex: `files.hostinger.com` (veja hPanel > Arquivos > Contas FTP) — **apenas se provider é ftp ou sftp**
+9. **Usuário FTP** — ex: `u123456789` — **apenas se provider é ftp ou sftp**
+10. **Senha FTP** — senha da conta FTP (separada da senha da Hostinger) — **apenas se provider é ftp ou sftp**
+11. **Caminho remoto** — ex: `/home/u123456789/public_html` — **apenas se provider é ftp ou sftp**
 
 ---
 
@@ -169,13 +170,18 @@ Substitua `TEMPLATE_ID` pelo valor registrado na Fase 2 (`minimalist`, `modern`,
 
 **`config/.env.production`** — credenciais lidas pelos scripts de deploy via shell:
 ```
+DEPLOY_PROVIDER=<valor>
+SITE_URL=<valor>
+
+# Se DEPLOY_PROVIDER=ftp
 FTP_HOST=<valor>
 FTP_USER=<valor>
 FTP_PASSWORD=<valor>
 FTP_PORT=21
 REMOTE_PATH=<valor>
-SITE_URL=<valor>
 ```
+
+> O provedor de deploy pode ser alterado posteriormente editando `config/.env.production`.
 
 ### 4.3 — Atualizar package.json
 

@@ -1,6 +1,6 @@
 # Pipeline de Deploy de Sites
 
-Automatize o deploy de sites HTML/CSS/JS estáticos no plano Single da Hostinger. Substitui uploads manuais via FTP ou gerenciador de arquivos por um pipeline automatizado e repetível: edite os arquivos em `src/` → execute um comando → site no ar.
+Automatize o deploy de sites HTML/CSS/JS estáticos em qualquer hospedagem. Substitui uploads manuais por um pipeline automatizado e repetível: edite os arquivos em `src/` → execute um comando → site no ar.
 
 **Em outras palavras:** você edita o código, executa um comando, e o site está no ar — validado, com backup e enviado automaticamente. Se algo quebrar, um único comando reverte tudo.
 
@@ -9,20 +9,21 @@ Automatize o deploy de sites HTML/CSS/JS estáticos no plano Single da Hostinger
 ## Índice
 
 1. [Pré-requisitos](#pré-requisitos)
-2. [Estrutura do repositório](#estrutura-do-repositório)
-3. [Templates de estilo visual](#templates-de-estilo-visual)
-4. [Configuração inicial](#configuração-inicial)
-5. [Fluxo de desenvolvimento diário](#fluxo-de-desenvolvimento-diário)
-6. [Fazendo deploy para produção](#fazendo-deploy-para-produção)
-7. [Revertendo o deploy](#revertendo-o-deploy)
-8. [Deploy automático com GitHub Actions](#deploy-automático-com-github-actions)
-9. [Solução de problemas](#solução-de-problemas)
+2. [Provedores](#provedores)
+3. [Estrutura do repositório](#estrutura-do-repositório)
+4. [Templates de estilo visual](#templates-de-estilo-visual)
+5. [Configuração inicial](#configuração-inicial)
+6. [Fluxo de desenvolvimento diário](#fluxo-de-desenvolvimento-diário)
+7. [Fazendo deploy para produção](#fazendo-deploy-para-produção)
+8. [Revertendo o deploy](#revertendo-o-deploy)
+9. [Deploy automático com GitHub Actions](#deploy-automático-com-github-actions)
+10. [Solução de problemas](#solução-de-problemas)
 
 ---
 
 ## Pré-requisitos
 
-Você precisa configurar algumas coisas no seu computador e na sua conta da Hostinger antes de fazer o primeiro deploy. Faça isso uma vez por máquina — não por projeto.
+Você precisa configurar algumas coisas no seu computador e na sua hospedagem antes de fazer o primeiro deploy. Faça isso uma vez por máquina — não por projeto.
 
 ### 1. Instalar o Git
 
@@ -48,7 +49,7 @@ git --version
 
 ### 2. Instalar o lftp
 
-O `lftp` é a ferramenta que faz o upload dos arquivos para o servidor via FTP seguro (SFTP). Ele suporta upload incremental, remoção de arquivos obsoletos e reconexão automática.
+O `lftp` é a ferramenta que faz o upload dos arquivos para o servidor via FTP e SFTP. Ele suporta upload incremental, remoção de arquivos obsoletos e reconexão automática. Necessário apenas se você usar os provedores `ftp` ou `sftp`.
 
 **Mac:**
 ```bash
@@ -71,18 +72,132 @@ lftp --version
 
 ---
 
-### 3. Obter as credenciais FTP na Hostinger
+### 3. Obter as credenciais do seu provedor de hospedagem
 
-1. Acesse https://hpanel.hostinger.com
-2. Clique em **Hospedagem** → **Gerenciar** ao lado do seu plano
-3. Na barra lateral esquerda, clique em **Arquivos** → **Contas FTP**
-4. Anote (ou crie) uma conta FTP — você precisará de:
-   - **Hostname FTP** (ex: `files.hostinger.com` ou IP)
-   - **Usuário** (ex: `u123456789`)
-   - **Senha** (definida por você ao criar a conta FTP)
-   - **Porta**: `21`
+O pipeline suporta 7 provedores de deploy. As credenciais necessárias variam por provedor — veja a seção [Provedores](#provedores) abaixo para detalhes de cada um.
 
-> **Atenção:** A senha FTP é separada da senha da sua conta Hostinger. Se não lembrar, redefina-a na mesma página de Contas FTP.
+Para **FTP** (o padrão), você precisará de:
+- **Hostname FTP** (ex: `files.hostinger.com` ou IP)
+- **Usuário** (ex: `u123456789`)
+- **Senha** (definida por você ao criar a conta FTP)
+- **Porta**: `21`
+
+> **Atenção:** A senha FTP é separada da senha da sua conta de hospedagem. Se não lembrar, redefina-a no painel do seu provedor.
+
+---
+
+## Provedores
+
+O pipeline de deploy é modular. Um único comando (`bash scripts/deploy.sh production`) funciona com qualquer um dos 7 provedores abaixo. O provedor ativo é definido pela variável `DEPLOY_PROVIDER` em `config/.env.production`.
+
+| Provedor | `DEPLOY_PROVIDER` | Quando usar |
+|---|---|---|
+| **FTP** | `ftp` | Hospedagem compartilhada (Hostinger, Locaweb, etc.) |
+| **SFTP** | `sftp` | Servidor VPS, AWS EC2, DigitalOcean — qualquer servidor com SSH |
+| **S3** | `s3` | AWS S3, Cloudflare R2, MinIO — storage de objetos |
+| **Vercel** | `vercel` | Projetos Next.js ou sites estáticos na Vercel |
+| **Netlify** | `netlify` | Sites estáticos na Netlify |
+| **Local** | `local` | Copia os arquivos para uma pasta local (testes, NAS, pen drive) |
+| **Rsync** | `rsync` | Qualquer servidor com SSH — mais rápido que SFTP para grandes sites |
+
+> **Mudar de provedor:** edite `DEPLOY_PROVIDER` em `config/.env.production` e adicione as variáveis do novo provedor. Não é necessário reinstalar nada.
+
+### Quick start por provedor
+
+#### FTP (padrão)
+
+```bash
+# config/.env.production
+DEPLOY_PROVIDER=ftp
+SITE_URL=https://dominiodocliente.com.br
+FTP_HOST=files.hostinger.com
+FTP_USER=u123456789
+FTP_PASSWORD=sua-senha-ftp
+FTP_PORT=21
+REMOTE_PATH=/home/u123456789/public_html
+```
+
+**Pré-requisito:** `lftp` instalado (veja [Pré-requisitos](#pré-requisitos)).
+
+#### SFTP
+
+```bash
+# config/.env.production
+DEPLOY_PROVIDER=sftp
+SITE_URL=https://dominiodocliente.com.br
+SFTP_HOST=seu-servidor.com
+SFTP_USER=root
+SFTP_PASSWORD=sua-senha-ssh
+SFTP_PORT=22
+REMOTE_PATH=/var/www/html
+```
+
+**Pré-requisito:** `lftp` instalado (o mesmo do FTP).
+
+#### S3
+
+```bash
+# config/.env.production
+DEPLOY_PROVIDER=s3
+SITE_URL=https://dominiodocliente.com.br
+S3_BUCKET=meu-bucket
+S3_REGION=us-east-1
+S3_ACCESS_KEY=AKIA...
+S3_SECRET_KEY=...
+S3_ENDPOINT=          # opcional — para MinIO, Cloudflare R2, etc.
+```
+
+**Pré-requisito:** AWS CLI instalado (`aws --version`).
+
+#### Vercel
+
+```bash
+# config/.env.production
+DEPLOY_PROVIDER=vercel
+SITE_URL=https://dominiodocliente.vercel.app
+VERCEL_TOKEN=seu-token
+VERCEL_PROJECT_ID=prj_...
+VERCEL_ORG_ID=team_...   # ou seu user ID
+```
+
+**Pré-requisito:** Vercel CLI instalado (`npm i -g vercel`).
+
+#### Netlify
+
+```bash
+# config/.env.production
+DEPLOY_PROVIDER=netlify
+SITE_URL=https://dominiodocliente.netlify.app
+NETLIFY_AUTH_TOKEN=seu-token
+NETLIFY_SITE_ID=seu-site-id
+```
+
+**Pré-requisito:** Netlify CLI instalado (`npm i -g netlify-cli`).
+
+#### Local
+
+```bash
+# config/.env.production
+DEPLOY_PROVIDER=local
+SITE_URL=file:///caminho/para/o/site
+LOCAL_DEST=/caminho/para/o/site
+```
+
+**Pré-requisito:** nenhum — apenas um caminho de destino válido.
+
+#### Rsync
+
+```bash
+# config/.env.production
+DEPLOY_PROVIDER=rsync
+SITE_URL=https://dominiodocliente.com.br
+RSYNC_HOST=seu-servidor.com
+RSYNC_USER=root
+RSYNC_PORT=22
+REMOTE_PATH=/var/www/html
+```
+
+**Pré-requisito:** `rsync` e `ssh` instalados (padrão em Mac/Linux).
 
 ---
 
@@ -178,10 +293,17 @@ Execute o script de configuração — ele fará as perguntas e criará o arquiv
 bash scripts/setup.sh
 ```
 
-Você verá um bloco de perguntas:
+Você verá um bloco de perguntas. O primeiro passo é escolher o provedor de deploy:
 
 ```
-── Credenciais FTP do servidor (config/.env.production) ─
+── Provedor de deploy ─
+Provedor (ftp, sftp, s3, vercel, netlify, local, rsync) [ftp]: ftp
+```
+
+Depois, o script pergunta as credenciais específicas do provedor escolhido. Para FTP, por exemplo:
+
+```
+── Credenciais FTP (config/.env.production) ─
 Hostname FTP (ex: files.hostinger.com): files.hostinger.com
 Usuário FTP (ex: u123456789): u123456789
 Senha FTP: ••••••••
@@ -190,19 +312,19 @@ Caminho remoto (ex: /home/u123456789/public_html): /home/u123456789/public_html
 URL do site (ex: https://dominiodocliente.com.br): https://dominiodocliente.com.br
 ```
 
-O script cria `config/.env.production` com suas credenciais FTP. Esse arquivo está no `.gitignore` e nunca será commitado. Se precisar alterar um valor depois, execute `bash scripts/setup.sh` novamente — ele pergunta antes de sobrescrever.
+O script cria `config/.env.production` com suas credenciais. Esse arquivo está no `.gitignore` e nunca será commitado. Se precisar alterar um valor depois, execute `bash scripts/setup.sh` novamente — ele pergunta antes de sobrescrever. Para mudar de provedor, basta escolher outro na primeira pergunta.
 
 > **Número do WhatsApp:** o botão flutuante do WhatsApp é configurado diretamente no HTML — edite `<meta name="whatsapp-number" content="5511999999999">` em cada página de `src/`.
 
 ### Passo 3 — Verificar se tudo está conectado
 
-Execute isso para confirmar que a conexão FTP, o arquivo de ambiente e a estrutura de arquivos estão corretos:
+Execute isso para confirmar que a conexão com o provedor, o arquivo de ambiente e a estrutura de arquivos estão corretos:
 
 ```bash
 bash scripts/preflight.sh
 ```
 
-Saída esperada:
+Saída esperada (exemplo com FTP):
 ```
 Executando verificações pré-deploy...
 Testando conectividade FTP com files.hostinger.com:21...
@@ -245,13 +367,13 @@ bash scripts/deploy.sh production
 
 ### O que acontece passo a passo
 
-1. **Preflight** — o script verifica que todas as credenciais FTP estão definidas e que a conexão com o servidor funciona; se algo estiver errado, para aqui antes de tocar no servidor
+1. **Preflight** — o script verifica que todas as credenciais do provedor ativo estão definidas e que a conexão funciona; se algo estiver errado, para aqui antes de tocar no servidor
 2. **Backup local** — uma cópia de `src/` é salva em `backups/src-TIMESTAMP/` no seu computador; se o deploy der errado, você pode reverter re-enviando esse backup
-3. **Upload FTP** — o lftp envia todos os arquivos de `src/` para o `public_html` do servidor via FTPS (FTP seguro com TLS); arquivos removidos de `src/` também são removidos do servidor
+3. **Upload** — o script envia todos os arquivos de `src/` para o destino configurado (FTP, SFTP, S3, Vercel, Netlify, local ou rsync); arquivos removidos de `src/` também são removidos do destino
 4. **Teste de fumaça** — o script acessa sua URL e verifica se recebe HTTP 200; se receber outra resposta, exibe o comando exato de rollback e encerra com erro
-5. **Resumo** — exibe a confirmação com timestamp e localização do backup local
+5. **Resumo** — exibe a confirmação com timestamp, localização do backup local e URL do site
 
-> **Atenção:** Sem acesso SSH (plano Single), não há reversão automática. Se o teste de fumaça falhar, o script exibirá o comando de rollback exato para você executar.
+> **Atenção:** em provedores sem acesso SSH (plano Single de hospedagem compartilhada), não há reversão automática no servidor. Se o teste de fumaça falhar, o script exibirá o comando de rollback exato para você executar.
 
 ### Exemplo de saída de um deploy bem-sucedido
 
@@ -277,7 +399,7 @@ Mirror: 12 files transferred, 0 errors
 
 ## Revertendo o deploy
 
-Se você fez um deploy e algo está errado no site no ar, você pode restaurar a versão anterior re-enviando um backup local via FTP.
+Se você fez um deploy e algo está errado no site no ar, você pode restaurar a versão anterior re-enviando um backup local via o mesmo provedor de deploy.
 
 > **Importante:** backups ficam armazenados em `backups/` no seu computador. Se você perder o computador ou deletar essa pasta, os backups são perdidos. Mantenha pelo menos os últimos deploys.
 
@@ -335,7 +457,7 @@ Uma vez configurado, você não precisa mais executar `deploy.sh` manualmente. C
 
 ### Como funciona
 
-O GitHub executa uma máquina Ubuntu virtual, faz o checkout do seu código e envia os arquivos de `src/` para o servidor via FTP usando a action `SamKirkland/FTP-Deploy-Action`. Na primeira execução ela envia todos os arquivos; nas seguintes, só envia o que mudou. As credenciais ficam armazenadas como Secrets criptografados do GitHub.
+O GitHub executa uma máquina Ubuntu virtual, faz o checkout do seu código e envia os arquivos de `src/` para o destino configurado. O workflow lê `DEPLOY_PROVIDER` e as credenciais correspondentes dos Secrets do repositório. Na primeira execução ele envia todos os arquivos; nas seguintes, só envia o que mudou. As credenciais ficam armazenadas como Secrets criptografados do GitHub.
 
 ### Passo 1 — Enviar o repositório para o GitHub
 
@@ -366,12 +488,47 @@ Os Secrets do GitHub armazenam suas credenciais do servidor de forma criptografa
 
 | Nome do secret | Onde encontrar o valor |
 |---|---|
-| `FTP_HOST` | Hostname FTP da Hostinger (ex: `files.hostinger.com`) — veja hPanel > Arquivos > Contas FTP |
-| `FTP_USER` | Usuário FTP da Hostinger (ex: `u123456789`) |
+| `DEPLOY_PROVIDER` | Provedor ativo: `ftp`, `sftp`, `s3`, `vercel`, `netlify`, `local`, `rsync` |
+| `SITE_URL` | URL do site (ex: `https://dominiodocliente.com.br`) |
+
+**Se `DEPLOY_PROVIDER=ftp`:**
+| `FTP_HOST` | Hostname FTP (ex: `files.hostinger.com`) |
+| `FTP_USER` | Usuário FTP (ex: `u123456789`) |
 | `FTP_PASSWORD` | Senha da conta FTP |
 | `FTP_PORT` | `21` |
 | `REMOTE_PATH` | `/home/u123456789/public_html` |
-| `SITE_URL` | `https://dominiodocliente.com.br` |
+
+**Se `DEPLOY_PROVIDER=sftp`:**
+| `SFTP_HOST` | Hostname do servidor |
+| `SFTP_USER` | Usuário SSH |
+| `SFTP_PASSWORD` | Senha SSH |
+| `SFTP_PORT` | `22` |
+| `REMOTE_PATH` | `/var/www/html` |
+
+**Se `DEPLOY_PROVIDER=s3`:**
+| `S3_BUCKET` | Nome do bucket |
+| `S3_REGION` | Região (ex: `us-east-1`) |
+| `S3_ACCESS_KEY` | AWS Access Key ID |
+| `S3_SECRET_KEY` | AWS Secret Access Key |
+| `S3_ENDPOINT` | Endpoint customizado (opcional — MinIO, R2, etc.) |
+
+**Se `DEPLOY_PROVIDER=vercel`:**
+| `VERCEL_TOKEN` | Token da Vercel |
+| `VERCEL_PROJECT_ID` | ID do projeto |
+| `VERCEL_ORG_ID` | ID da organização ou usuário |
+
+**Se `DEPLOY_PROVIDER=netlify`:**
+| `NETLIFY_AUTH_TOKEN` | Token pessoal do Netlify |
+| `NETLIFY_SITE_ID` | ID do site |
+
+**Se `DEPLOY_PROVIDER=local`:**
+| `LOCAL_DEST` | Caminho local de destino |
+
+**Se `DEPLOY_PROVIDER=rsync`:**
+| `RSYNC_HOST` | Hostname do servidor |
+| `RSYNC_USER` | Usuário SSH |
+| `RSYNC_PORT` | `22` |
+| `REMOTE_PATH` | `/var/www/html` |
 
 Para adicionar cada secret: digite o nome no campo **Name**, cole o valor no campo **Secret**, clique em **Add secret**.
 
@@ -397,27 +554,28 @@ Se o workflow exibir um X vermelho, clique nele, depois clique no job **deploy**
 
 ## Solução de problemas
 
-### Erro de autenticação FTP (Login incorrect / 530)
+### Erro de autenticação (Login incorrect / 530)
 
-1. Confirme a senha FTP no hPanel → Arquivos → Contas FTP — a senha do FTP é separada da senha da Hostinger. Redefina-a se necessário.
-2. Verifique se `FTP_USER` está no formato correto (ex: `u123456789`, não apenas o nome de usuário).
-3. Confirme que `FTP_HOST` é o hostname exato listado no hPanel (varia por servidor).
+1. Confirme a senha no painel do seu provedor de hospedagem — a senha de deploy é separada da senha da conta principal. Redefina-a se necessário.
+2. Verifique se o usuário está no formato correto (ex: `u123456789` para FTP, não apenas o nome de usuário).
+3. Confirme que o hostname é o exato listado no painel do provedor (varia por servidor).
+4. Verifique se `DEPLOY_PROVIDER` em `config/.env.production` corresponde ao provedor que você configurou.
 
 ---
 
-### Timeout de conexão FTP durante o deploy
+### Timeout de conexão durante o deploy
 
-O plano Single usa servidor compartilhado — picos de tráfego podem causar timeouts. O script já tenta reconectar até 3 vezes automaticamente. Se persistir:
+Em hospedagem compartilhada, picos de tráfego podem causar timeouts. O script já tenta reconectar até 3 vezes automaticamente. Se persistir:
 
-1. Verifique se o firewall local não está bloqueando a porta 21.
+1. Verifique se o firewall local não está bloqueando a porta necessária (21 para FTP, 22 para SFTP/RSYNC).
 2. Tente executar novamente — timeouts transitórios são comuns em hospedagem compartilhada.
-3. Se o problema persistir, entre em contato com o suporte da Hostinger.
+3. Se o problema persistir, entre em contato com o suporte do seu provedor de hospedagem.
 
 ---
 
 ### Teste de fumaça retorna status diferente de 200, mas o site parece normal no navegador
 
-Navegadores seguem redirecionamentos automaticamente; o curl não. A Hostinger frequentemente redireciona HTTP para HTTPS, ou `www.` para o domínio sem prefixo (ou vice-versa).
+Navegadores seguem redirecionamentos automaticamente; o curl não. Muitos provedores redirecionam HTTP para HTTPS, ou `www.` para o domínio sem prefixo (ou vice-versa).
 
 Encontre a URL que retorna exatamente 200:
 ```bash
@@ -430,10 +588,11 @@ Procure a linha `HTTP/2 200` (ou `HTTP/1.1 200 OK`). Atualize o `SITE_URL` no se
 
 ---
 
-### Deploy pelo GitHub Actions falha com erro FTP
+### Deploy pelo GitHub Actions falha
 
 **Causas mais comuns:**
 
-1. **Senha incorreta** — vá em GitHub → Settings → Secrets → Actions → clique em `FTP_PASSWORD` → Update secret → cole a senha correta → Save.
-2. **Secret ausente ou com typo** — confirme que todos os 6 secrets foram adicionados e que os nomes estão exatos (diferenciam maiúsculas de minúsculas).
-3. **Hostname errado** — abra a aba Actions → clique no workflow com falha → expanda a etapa "Deploy via FTP" para ler o erro exato.
+1. **Senha incorreta** — vá em GitHub → Settings → Secrets → Actions → clique no secret de senha do provedor ativo (ex: `FTP_PASSWORD`, `SFTP_PASSWORD`, `S3_SECRET_KEY`) → Update secret → cole a senha correta → Save.
+2. **Secret ausente ou com typo** — confirme que todos os secrets do provedor ativo foram adicionados e que os nomes estão exatos (diferenciam maiúsculas de minúsculas). Veja a tabela na seção [Deploy automático com GitHub Actions](#deploy-automático-com-github-actions).
+3. **Provedor não configurado** — confirme que `DEPLOY_PROVIDER` está definido como secret e corresponde ao provedor que você configurou.
+4. **Hostname errado** — abra a aba Actions → clique no workflow com falha → expanda a etapa de deploy para ler o erro exato.

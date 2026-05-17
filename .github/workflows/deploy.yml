@@ -6,25 +6,41 @@ on:
       - main
 
 jobs:
-  deploy:
+  preflight:
     runs-on: ubuntu-latest
-
+    outputs:
+      provider: ${{ steps.provider.outputs.provider }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Determine provider
+        id: provider
+        run: echo "provider=${{ secrets.DEPLOY_PROVIDER || 'ftp' }}" >> $GITHUB_OUTPUT
 
+  deploy-ftp:
+    needs: preflight
+    if: needs.preflight.outputs.provider == 'ftp' || needs.preflight.outputs.provider == 'sftp'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Write env file
         run: |
           cat > config/.env.production <<EOF
+          DEPLOY_PROVIDER=${{ secrets.DEPLOY_PROVIDER }}
+          SITE_URL=${{ secrets.SITE_URL }}
           FTP_HOST=${{ secrets.FTP_HOST }}
           FTP_USER=${{ secrets.FTP_USER }}
           FTP_PASSWORD=${{ secrets.FTP_PASSWORD }}
           FTP_PORT=${{ secrets.FTP_PORT }}
           REMOTE_PATH=${{ secrets.REMOTE_PATH }}
-          SITE_URL=${{ secrets.SITE_URL }}
+          SFTP_HOST=${{ secrets.SFTP_HOST }}
+          SFTP_USER=${{ secrets.SFTP_USER }}
+          SFTP_PASSWORD=${{ secrets.SFTP_PASSWORD }}
+          SFTP_PORT=${{ secrets.SFTP_PORT }}
           EOF
-
       - name: Deploy via FTP
+        if: needs.preflight.outputs.provider == 'ftp'
         uses: SamKirkland/FTP-Deploy-Action@v4
         with:
           server: ${{ secrets.FTP_HOST }}
@@ -36,7 +52,134 @@ jobs:
           server-dir: ${{ secrets.REMOTE_PATH }}/
           dangerous-clean-slate: false
           log-level: standard
+      - name: Deploy via SFTP
+        if: needs.preflight.outputs.provider == 'sftp'
+        run: |
+          apt-get update && apt-get install -y sshpass
+          sshpass -p "${{ secrets.SFTP_PASSWORD }}" rsync -e "ssh -o StrictHostKeyChecking=no -p ${{ secrets.SFTP_PORT }}" -avz --delete ./src/ ${{ secrets.SFTP_USER }}@${{ secrets.SFTP_HOST }}:${{ secrets.REMOTE_PATH }}/
+      - name: Smoke test
+        run: |
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 15 -L "${{ secrets.SITE_URL }}")
+          echo "HTTP status: ${HTTP_STATUS}"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "ERRO: Teste de fumaça falhou — HTTP ${HTTP_STATUS}" >&2
+            exit 1
+          fi
+          echo "Smoke test aprovado."
 
+  deploy-s3:
+    needs: preflight
+    if: needs.preflight.outputs.provider == 's3'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Write env file
+        run: |
+          cat > config/.env.production <<EOF
+          DEPLOY_PROVIDER=${{ secrets.DEPLOY_PROVIDER }}
+          SITE_URL=${{ secrets.SITE_URL }}
+          S3_BUCKET=${{ secrets.S3_BUCKET }}
+          S3_PREFIX=${{ secrets.S3_PREFIX }}
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          EOF
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Sync to S3
+        run: |
+          aws s3 sync ./src s3://${{ secrets.S3_BUCKET }}/${{ secrets.S3_PREFIX }}/ --delete
+      - name: Smoke test
+        run: |
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 15 -L "${{ secrets.SITE_URL }}")
+          echo "HTTP status: ${HTTP_STATUS}"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "ERRO: Teste de fumaça falhou — HTTP ${HTTP_STATUS}" >&2
+            exit 1
+          fi
+          echo "Smoke test aprovado."
+
+  deploy-vercel:
+    needs: preflight
+    if: needs.preflight.outputs.provider == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          vercel deploy --token=$VERCEL_TOKEN --prod
+      - name: Smoke test
+        run: |
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 15 -L "${{ secrets.SITE_URL }}")
+          echo "HTTP status: ${HTTP_STATUS}"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "ERRO: Teste de fumaça falhou — HTTP ${HTTP_STATUS}" >&2
+            exit 1
+          fi
+          echo "Smoke test aprovado."
+
+  deploy-netlify:
+    needs: preflight
+    if: needs.preflight.outputs.provider == 'netlify'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Deploy to Netlify
+        uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: ./src
+          production-branch: main
+          production-deploy: ${{ secrets.NETLIFY_PRODUCTION_DEPLOY }}
+          deploy-message: "Deploy from GitHub Actions"
+          enable-pull-request-comment: true
+          enable-commit-comment: false
+          overwrites-pull-request-comment: true
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      - name: Smoke test
+        run: |
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 15 -L "${{ secrets.SITE_URL }}")
+          echo "HTTP status: ${HTTP_STATUS}"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "ERRO: Teste de fumaça falhou — HTTP ${HTTP_STATUS}" >&2
+            exit 1
+          fi
+          echo "Smoke test aprovado."
+
+  deploy-rsync:
+    needs: preflight
+    if: needs.preflight.outputs.provider == 'rsync'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Write env file
+        run: |
+          cat > config/.env.production <<EOF
+          DEPLOY_PROVIDER=${{ secrets.DEPLOY_PROVIDER }}
+          SITE_URL=${{ secrets.SITE_URL }}
+          RSYNC_HOST=${{ secrets.RSYNC_HOST }}
+          RSYNC_USER=${{ secrets.RSYNC_USER }}
+          RSYNC_PORT=${{ secrets.RSYNC_PORT }}
+          REMOTE_PATH=${{ secrets.REMOTE_PATH }}
+          EOF
+      - name: Deploy via Rsync
+        env:
+          RSYNC_KEY: ${{ secrets.RSYNC_KEY }}
+        run: |
+          echo "$RSYNC_KEY" > /tmp/rsync_key
+          chmod 600 /tmp/rsync_key
+          rsync -avz -e "ssh -o StrictHostKeyChecking=no -i /tmp/rsync_key -p ${{ secrets.RSYNC_PORT }}" --delete ./src/ ${{ secrets.RSYNC_USER }}@${{ secrets.RSYNC_HOST }}:${{ secrets.REMOTE_PATH }}/
       - name: Smoke test
         run: |
           HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 15 -L "${{ secrets.SITE_URL }}")
