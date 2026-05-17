@@ -1,4 +1,4 @@
-# Pipeline de Deploy de Sites
+# make-a-site
 
 Automatize o deploy de sites HTML/CSS/JS estáticos em qualquer hospedagem. Substitui uploads manuais por um pipeline automatizado e repetível: edite os arquivos em `src/` → execute um comando → site no ar.
 
