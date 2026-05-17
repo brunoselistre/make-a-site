@@ -6,6 +6,37 @@ Automatize o deploy de sites HTML/CSS/JS estáticos em qualquer hospedagem. Subs
 
 ---
 
+## 🤖 Uso com Ferramentas de IA
+
+Este projeto inclui instruções para agentes de IA em [`AGENTS.md`](./AGENTS.md). Qualquer assistente de IA (Claude, Cursor, Copilot, etc.) pode ler esse arquivo e entender como trabalhar com este pipeline.
+
+### O que a IA pode fazer por você
+
+| Tarefa | Descrição |
+|--------|-----------|
+| **Criar novo site** | Guia em 5 fases: coleta de informações → escolha de template → personalização de cores/fontes → build → preview |
+| **Editar site existente** | Alterar cores, textos, adicionar/remover páginas, ajustar layout |
+| **Deploy** | Executar preflight, deploy e verificação pós-deploy |
+| **Debug** | Diagnosticar erros de conexão, credenciais ou smoke test |
+
+### Como usar
+
+Simplesmente aponte seu assistente de IA para o arquivo `AGENTS.md` e descreva o que você precisa:
+
+> *"Crie um novo site para uma clínica odontológica usando o template clássico"*
+>
+> *"Mude a cor primária para azul marinho e a fonte para uma serifada elegante"*
+>
+> *"Adicione uma página de blog e remova a página de serviços"*
+
+A IA seguirá automaticamente as regras do projeto, incluindo:
+- Editar apenas arquivos em `src/`
+- Seguir constraints específicas de cada template
+- Substituir placeholders corretamente
+- Verificar checklist de segurança antes do deploy
+
+---
+
 ## Índice
 
 1. [Pré-requisitos](#pré-requisitos)
